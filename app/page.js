@@ -23,7 +23,11 @@ export default function Home() {
     fetchProducts();
     // Cek LocalStorage untuk History saat pertama buka
     const savedIds = JSON.parse(localStorage.getItem("warungBiEemOrderIds") || "[]");
-    if (savedIds.length > 0) fetchHistory(savedIds);
+    
+    // PERBAIKAN: Hanya panggil fetchHistory jika benar-benar ada ID tersimpan
+    if (savedIds.length > 0) {
+        fetchHistory(savedIds);
+    }
   }, []);
 
   // Update Queue setiap kali masuk halaman antrian
@@ -44,12 +48,22 @@ export default function Home() {
     }
   }
 
+  // === PERBAIKAN UTAMA DI SINI ===
   async function fetchHistory(ids) {
+    // PENGAMAN: Jika tidak ada ID (array kosong), jangan panggil API.
+    // Ini mencegah API mengembalikan "Semua Pesanan" secara tidak sengaja.
+    if (!ids || ids.length === 0) {
+        setHistoryOrders([]);
+        return;
+    }
+
     try {
-      // Panggil API dengan parameter ID
+      // Panggil API dengan parameter ID spesifik
       const res = await fetch(`/api/orders?ids=${ids.join(",")}`);
       const data = await res.json();
-      setHistoryOrders(data);
+      
+      // Pastikan data yang diterima berupa Array
+      setHistoryOrders(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Gagal ambil history:", error);
     }
@@ -57,7 +71,7 @@ export default function Home() {
 
   async function fetchQueue() {
     try {
-      const res = await fetch("/api/orders"); // Ambil semua antrian aktif
+      const res = await fetch("/api/orders"); // Ambil semua antrian aktif (API default ambil semua)
       const data = await res.json();
       setQueueList(data);
     } catch (error) {
@@ -111,9 +125,9 @@ export default function Home() {
 
       if (res.ok) {
         const result = await res.json();
-        alert(`✅ Pesanan Berhasil! Nomor Antrian: #${result.order.queueNumber}`);
+        alert(`✅ Pesanan Berhasil! Nomor Antrian: #${result.order.queueNumber} \nSilakan lakukan pembayaran dan mengirim bukti bayar melalui halaman riwayat pesanan.`);
         
-        // Simpan ID ke LocalStorage (seperti script.js lama)
+        // Simpan ID ke LocalStorage (Kunci Privasi User)
         const currentIds = JSON.parse(localStorage.getItem("warungBiEemOrderIds") || "[]");
         const newIds = [...currentIds, result.order._id];
         localStorage.setItem("warungBiEemOrderIds", JSON.stringify(newIds));
@@ -123,7 +137,7 @@ export default function Home() {
         setCustomerName("");
         setNotes("");
         
-        // Pindah ke History & Refresh datanya
+        // Pindah ke History & Refresh datanya dengan ID baru
         fetchHistory(newIds);
         setActivePage("history");
       } else {
@@ -222,11 +236,6 @@ export default function Home() {
                   value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
             </div>
             
-            <div className="form-group">
-                <label className="form-label">Catatan</label>
-                <textarea className="form-input" placeholder="Contoh: Jangan pedas" 
-                  value={notes} onChange={(e) => setNotes(e.target.value)} />
-            </div>
 
             <button className="btn btn-primary" onClick={processCheckout} disabled={isProcessing}>
               {isProcessing ? "Memproses..." : "Konfirmasi Pesanan"}
@@ -250,6 +259,7 @@ export default function Home() {
                     {queueList.find(q => q.status === 'processing')?.queueNumber || '-'}
                   </div>
               </div>
+              <button className="btn btn-primary" onClick={fetchQueue} style={{marginTop: '20px'}}>🔄 Refresh</button>
               
               <h3 className="queue-title" style={{marginTop: '20px'}}>Daftar Menunggu</h3>
               <div className="queue-list">
@@ -262,7 +272,6 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              <button className="btn btn-primary" onClick={fetchQueue} style={{marginTop: '20px'}}>🔄 Refresh</button>
           </div>
         </div>
       )}
@@ -274,8 +283,13 @@ export default function Home() {
             <img src="/qris.jpg" alt="QRIS" style={{width: '40%', display: 'block', margin: '10px auto', borderRadius: '10px'}} />
             <p className="page-subtitle" style={{textAlign: 'center'}}>Silakan transfer & upload bukti bayar</p>
             
-            <div id="history-list-container">
-              {historyOrders.length === 0 ? <p className="text-center mt-4">Belum ada riwayat.</p> : 
+            <button className="btn btn-secondary mb-4 mt-4" onClick={() => {
+              const savedIds = JSON.parse(localStorage.getItem("warungBiEemOrderIds") || "[]");
+              fetchHistory(savedIds);
+            }}>🔄 Refresh Status</button>
+
+            <div id="history-list-container" className="text-center mt-4">
+              {historyOrders.length === 0 ? <p className="text-center mt-4">Belum ada riwayat pesanan Anda.</p> : 
               historyOrders.map((order) => (
                 <div key={order._id} className="history-group">
                     <div className="history-group-header">
@@ -305,9 +319,9 @@ export default function Home() {
                             ✅ Bukti Pembayaran Terkirim
                           </div>
                         ) : (
-                          <div>
+                          <div style={{background:'#fff', padding:'10px', borderRadius:'5px', boxShadow:'0 0 5px rgba(0,0,0,0.1)'}}>
                             <label style={{display:'block', marginBottom:'5px', fontSize:'0.9em'}}>Upload Bukti Transfer:</label>
-                            <input type="file" accept="image/*" 
+                            <input style={{background: '#1aff00'}} type="file" accept="image/*" 
                               onChange={(e) => {
                                 const file = e.target.files[0];
                                 if(!file) return;
@@ -326,7 +340,8 @@ export default function Home() {
                                     });
                                     if(res.ok) {
                                       alert("Bukti berhasil diupload!");
-                                      fetchHistory(JSON.parse(localStorage.getItem("warungBiEemOrderIds") || "[]"));
+                                      const ids = JSON.parse(localStorage.getItem("warungBiEemOrderIds") || "[]");
+                                      fetchHistory(ids);
                                     }
                                   } catch(err) { alert("Gagal upload"); }
                                 };
@@ -339,11 +354,6 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            
-            <button className="btn btn-secondary mt-4" onClick={() => {
-              const savedIds = JSON.parse(localStorage.getItem("warungBiEemOrderIds") || "[]");
-              fetchHistory(savedIds);
-            }}>🔄 Refresh Status</button>
         </div>
       )}
 

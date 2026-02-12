@@ -28,8 +28,17 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/orders");
       const data = await res.json();
-      setOrders(data);
-    } catch (err) { console.error(err); }
+      
+      // PENGAMAN: Hanya simpan jika data benar-benar berupa Array (Daftar)
+      if (Array.isArray(data)) {
+        setOrders(data);
+      } else {
+        console.error("API Error (Bukan Array):", data);
+        // Jangan setOrders(data) kalau isinya error object!
+      }
+    } catch (err) { 
+      console.error("Gagal fetch:", err); 
+    }
   }
 
   async function fetchProducts() {
