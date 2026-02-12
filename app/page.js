@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 
 export default function Home() {
   // === STATE (Data Aplikasi) ===
@@ -280,7 +281,8 @@ export default function Home() {
       {activePage === "history" && (
         <div className="page active">
             <div className="header"><h1 className="header-title">Riwayat Pesanan</h1></div>
-            <img src="/qris.jpg" alt="QRIS" style={{width: '40%', display: 'block', margin: '10px auto', borderRadius: '10px'}} />
+            <Image src="/qris.jpg" alt="QRIS" width={200} height={200} style={{width: '40%', height: 'auto', display: 'block', margin: '10px auto', borderRadius: '10px'}} />
+
             <p className="page-subtitle" style={{textAlign: 'center'}}>Silakan transfer & upload bukti bayar</p>
             
             <button className="btn btn-secondary mb-4 mt-4" onClick={() => {
@@ -343,7 +345,7 @@ export default function Home() {
                                       const ids = JSON.parse(localStorage.getItem("warungBiEemOrderIds") || "[]");
                                       fetchHistory(ids);
                                     }
-                                  } catch(err) { alert("Gagal upload"); }
+                                  } catch { alert("Gagal upload"); }
                                 };
                               }}
                             />
